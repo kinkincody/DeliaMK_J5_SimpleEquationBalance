@@ -2,40 +2,43 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Advanced Equation Balance - Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Prevent default touch behaviors like scrolling while dragging on iPad */
+        body {
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
         .balance-beam {
             transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
             transform-origin: center 20px;
         }
+
         .item-box {
-            width: 58px;
-            height: 58px;
+            width: 64px;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            border-radius: 12px;
-            font-size: 14px;
+            border-radius: 14px;
+            font-size: 16px;
             cursor: grab;
-            user-select: none;
             transition: transform 0.2s, box-shadow 0.2s;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             position: relative;
+            touch-action: none; /* Critical for custom touch dragging */
         }
-        .item-box:active { cursor: grabbing; transform: scale(1.05); }
+
+        .item-box:active { cursor: grabbing; transform: scale(1.1); }
         
-        /* Positive Styles */
         .x-pos { background-color: #f97316; color: white; border: 2px solid #ea580c; }
         .num-pos { background-color: #3b82f6; color: white; border: 2px solid #2563eb; }
-        
-        /* Negative Styles */
-        .is-negative {
-            border-style: dashed !important;
-            opacity: 0.9;
-        }
+        .is-negative { border-style: dashed !important; opacity: 0.9; }
         .x-neg { background-color: #ef4444; color: white; border: 2px solid #dc2626; }
         .num-neg { background-color: #06b6d4; color: white; border: 2px solid #0891b2; }
         
@@ -46,142 +49,153 @@
             color: inherit;
             font-weight: 800;
             outline: none;
-            cursor: text;
-            font-size: 1rem;
+            font-size: 1.1rem;
         }
 
         .drop-zone {
-            min-height: 220px;
-            border: 2px dashed transparent;
+            min-height: 240px;
+            border: 3px dashed transparent;
             transition: border-color 0.3s, background-color 0.3s;
             border-radius: 1.5rem;
         }
+
         .drop-zone.drag-over {
-            border-color: #cbd5e1;
-            background-color: rgba(241, 245, 249, 0.8);
+            border-color: #94a3b8;
+            background-color: rgba(226, 232, 240, 0.5);
         }
 
-        .balanced-glow {
-            filter: drop-shadow(0 0 30px rgba(34, 197, 94, 0.5));
+        .dragging-active {
+            opacity: 0.5;
+            transform: scale(0.9);
+            pointer-events: none;
+        }
+
+        /* Ghost element for touch dragging */
+        #drag-ghost {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            display: none;
+            opacity: 0.8;
         }
 
         .toolbar-section {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 0 1.5rem;
-        }
-
-        .weight-tag {
-            transition: opacity 0.3s;
+            padding: 0 1rem;
         }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex flex-col items-center p-6 text-slate-800" ondragover="allowDrop(event)" ondrop="handleGlobalDrop(event)">
+<body class="bg-slate-50 min-h-screen flex flex-col items-center p-4 md:p-8 text-slate-800" 
+      ondragover="allowDrop(event)" ondrop="handleGlobalDrop(event)">
 
-    <div class="max-w-4xl w-full text-center mb-6">
-        <h1 class="text-4xl font-black text-slate-900 mb-1">⚖️ Equation Balance Master</h1>
-        <p class="text-slate-500 font-medium italic">Heavier value side sinks to the bottom.</p>
-    </div>
+    <!-- Ghost element for mobile dragging visualization -->
+    <div id="drag-ghost" class="item-box"></div>
 
-    <!-- Toolbar -->
-    <div class="bg-white p-5 rounded-3xl shadow-xl flex items-center mb-8 border-2 border-slate-100 z-50 divide-x divide-slate-100">
-        <div class="toolbar-section">
+    <header class="max-w-4xl w-full text-center mb-6">
+        <h1 class="text-3xl md:text-4xl font-black text-slate-900 mb-1">⚖️ Equation Balance Master</h1>
+        <p class="text-slate-500 font-medium italic text-sm md:text-base">Heavier value side sinks to the bottom. Drag items to the plates.</p>
+    </header>
+
+    <!-- Toolbar: Responsive for Mobile/iPad -->
+    <nav class="bg-white p-4 md:p-6 rounded-3xl shadow-xl flex flex-wrap justify-center items-center mb-8 border-2 border-slate-100 z-50 gap-y-4">
+        <div class="toolbar-section border-r border-slate-100">
             <span class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Variables (X)</span>
-            <div class="flex gap-4">
-                <div class="item-box x-pos" draggable="true" ondragstart="handleSourceDragStart(event, 'x', 1)">
-                     <input type="text" id="toolXPosVal" value="1" class="item-input" onmousedown="event.stopPropagation()">
+            <div class="flex gap-3">
+                <div class="item-box x-pos touch-draggable" data-type="x" data-val-id="toolXPosVal">
+                     <input type="text" id="toolXPosVal" value="1" class="item-input" readonly>
                 </div>
-                <div class="item-box x-neg is-negative" draggable="true" ondragstart="handleSourceDragStart(event, 'x', -1)">
-                     <input type="text" id="toolXNegVal" value="-1" class="item-input" onmousedown="event.stopPropagation()">
+                <div class="item-box x-neg is-negative touch-draggable" data-type="x" data-val-id="toolXNegVal">
+                     <input type="text" id="toolXNegVal" value="-1" class="item-input" readonly>
                 </div>
             </div>
         </div>
 
-        <div class="toolbar-section">
+        <div class="toolbar-section border-r border-slate-100">
             <span class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Constants</span>
-            <div class="flex gap-4">
-                <div class="item-box num-pos" draggable="true" ondragstart="handleSourceDragStart(event, 'num', 1)">
-                    <input type="text" id="toolNumPosVal" value="1" class="item-input" onmousedown="event.stopPropagation()">
+            <div class="flex gap-3">
+                <div class="item-box num-pos touch-draggable" data-type="num" data-val-id="toolNumPosVal">
+                    <input type="text" id="toolNumPosVal" value="1" class="item-input" readonly>
                 </div>
-                <div class="item-box num-neg is-negative" draggable="true" ondragstart="handleSourceDragStart(event, 'num', -1)">
-                    <input type="text" id="toolNumNegVal" value="-1" class="item-input" onmousedown="event.stopPropagation()">
+                <div class="item-box num-neg is-negative touch-draggable" data-type="num" data-val-id="toolNumNegVal">
+                    <input type="text" id="toolNumNegVal" value="-1" class="item-input" readonly>
                 </div>
             </div>
         </div>
 
-        <div class="toolbar-section">
-            <label class="text-[10px] font-bold text-orange-600 mb-1 uppercase tracking-widest">Set X Value</label>
+        <div class="toolbar-section border-r border-slate-100">
+            <label for="valX" class="text-[10px] font-bold text-orange-600 mb-1 uppercase tracking-widest">Set X Value</label>
             <input type="number" id="valX" value="5" class="border-2 border-orange-100 rounded-xl p-2 text-center text-xl font-black bg-orange-50 w-20 outline-none focus:border-orange-400">
         </div>
 
         <div class="toolbar-section gap-2">
-            <button onclick="combineTerms()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors font-bold text-xs shadow-md w-full">✨ Combine</button>
-            <button onclick="resetScale()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl transition-colors font-bold text-xs w-full">🔄 Reset</button>
+            <button onclick="combineTerms()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl transition-colors font-bold text-sm shadow-md w-full">✨ Combine</button>
+            <button onclick="resetScale()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2 rounded-xl transition-colors font-bold text-sm w-full">🔄 Reset</button>
         </div>
-    </div>
+    </nav>
 
     <!-- Equation Visualization -->
-    <div class="bg-white px-12 py-6 rounded-2xl mb-10 shadow-sm border-2 border-slate-100 flex flex-col items-center">
-        <div class="flex items-center gap-8">
-            <div class="flex flex-col items-center min-w-[140px]">
-                <span id="txtLeft" class="text-4xl font-serif font-medium text-slate-700">0</span>
-                <div class="mt-3 w-full border-t border-slate-100 pt-2 flex items-center justify-center gap-1 text-slate-400 font-bold text-lg">
+    <section aria-label="Equation Display" class="bg-white px-8 py-4 md:px-12 md:py-6 rounded-2xl mb-10 shadow-sm border-2 border-slate-100 flex flex-col items-center w-full max-w-2xl">
+        <div class="flex items-center justify-between w-full gap-4">
+            <div class="flex flex-col items-center flex-1">
+                <span id="txtLeft" class="text-2xl md:text-4xl font-serif font-medium text-slate-700">0</span>
+                <div class="mt-2 w-full border-t border-slate-100 pt-2 flex items-center justify-center gap-1 text-slate-400 font-bold text-lg">
                     <span>=</span>
                     <span id="evalLeft" class="text-slate-900 font-black">0</span>
                 </div>
             </div>
 
-            <div class="flex flex-col items-center gap-2 px-4 border-x border-slate-100">
-                <span class="text-4xl text-slate-200">=</span>
-                <span id="xDisplayCenter" class="text-xs font-black text-orange-500 bg-orange-50 px-3 py-1 rounded-full border border-orange-100 uppercase tracking-tighter">X = 5</span>
+            <div class="flex flex-col items-center gap-1 px-4 border-x border-slate-100">
+                <span class="text-3xl text-slate-200">=</span>
+                <span id="xDisplayCenter" class="text-[10px] font-black text-orange-500 bg-orange-50 px-3 py-1 rounded-full border border-orange-100 uppercase whitespace-nowrap">X = 5</span>
             </div>
 
-            <div class="flex flex-col items-center min-w-[140px]">
-                <span id="txtRight" class="text-4xl font-serif font-medium text-slate-700">0</span>
-                <div class="mt-3 w-full border-t border-slate-100 pt-2 flex items-center justify-center gap-1 text-slate-400 font-bold text-lg">
+            <div class="flex flex-col items-center flex-1">
+                <span id="txtRight" class="text-2xl md:text-4xl font-serif font-medium text-slate-700">0</span>
+                <div class="mt-2 w-full border-t border-slate-100 pt-2 flex items-center justify-center gap-1 text-slate-400 font-bold text-lg">
                     <span>=</span>
                     <span id="evalRight" class="text-slate-900 font-black">0</span>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
     <!-- Scale -->
-    <div class="relative w-full max-w-6xl flex flex-col items-center">
-        <div class="absolute top-[20px] w-6 h-[420px] bg-slate-200 rounded-full"></div>
-        <div class="absolute top-[10px] w-14 h-14 bg-slate-400 rounded-full z-20 border-4 border-white shadow-md"></div>
+    <div class="relative w-full max-w-6xl flex flex-col items-center mt-12 mb-20">
+        <div class="absolute top-[20px] w-4 md:w-6 h-[300px] md:h-[420px] bg-slate-200 rounded-full"></div>
+        <div class="absolute top-[10px] w-12 h-12 md:w-14 md:h-14 bg-slate-400 rounded-full z-20 border-4 border-white shadow-md"></div>
         
-        <div id="beam" class="balance-beam relative w-full flex justify-between items-start pt-10 z-10 px-10">
+        <div id="beam" class="balance-beam relative w-full flex justify-between items-start pt-10 z-10 px-4 md:px-10">
             <!-- Left Plate -->
-            <div id="leftContainer" class="flex flex-col items-center w-[480px]">
-                <div id="leftPlate" class="drop-zone w-full flex flex-wrap-reverse justify-center gap-3 p-6 content-start"
+            <div id="leftContainer" class="flex flex-col items-center w-[45%] md:w-[480px]">
+                <div id="leftPlate" class="drop-zone w-full flex flex-wrap-reverse justify-center gap-2 p-4 content-start"
                      ondragover="allowDrop(event)" ondrop="handlePlateDrop(event, 'left')">
                 </div>
-                <div class="w-full h-7 bg-slate-800 rounded-full shadow-2xl relative">
-                    <div id="tagLeft" class="weight-tag absolute -top-8 left-1/2 -translate-x-1/2 bg-orange-600 text-white text-[10px] font-bold px-2 py-0.5 rounded opacity-0 uppercase tracking-widest">Heavier ↓</div>
+                <div class="w-full h-5 md:h-7 bg-slate-800 rounded-full shadow-2xl relative">
+                    <div id="tagLeft" class="weight-tag absolute -top-10 left-1/2 -translate-x-1/2 bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full opacity-0 uppercase">Heavier ↓</div>
                 </div>
-                <div class="mt-5 bg-slate-700 text-white px-6 py-2 rounded-full text-xs font-black tracking-widest uppercase">
-                    Value: <span id="sumLeft" class="text-lg ml-1">0</span>
+                <div class="mt-4 bg-slate-700 text-white px-4 py-2 rounded-full text-[10px] font-black tracking-widest uppercase">
+                    Val: <span id="sumLeft" class="text-base ml-1">0</span>
                 </div>
             </div>
 
             <!-- Right Plate -->
-            <div id="rightContainer" class="flex flex-col items-center w-[480px]">
-                <div id="rightPlate" class="drop-zone w-full flex flex-wrap-reverse justify-center gap-3 p-6 content-start"
+            <div id="rightContainer" class="flex flex-col items-center w-[45%] md:w-[480px]">
+                <div id="rightPlate" class="drop-zone w-full flex flex-wrap-reverse justify-center gap-2 p-4 content-start"
                      ondragover="allowDrop(event)" ondrop="handlePlateDrop(event, 'right')">
                 </div>
-                <div class="w-full h-7 bg-slate-800 rounded-full shadow-2xl relative">
-                    <div id="tagRight" class="weight-tag absolute -top-8 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded opacity-0 uppercase tracking-widest">Heavier ↓</div>
+                <div class="w-full h-5 md:h-7 bg-slate-800 rounded-full shadow-2xl relative">
+                    <div id="tagRight" class="weight-tag absolute -top-10 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-full opacity-0 uppercase">Heavier ↓</div>
                 </div>
-                <div class="mt-5 bg-slate-700 text-white px-6 py-2 rounded-full text-xs font-black tracking-widest uppercase">
-                    Value: <span id="sumRight" class="text-lg ml-1">0</span>
+                <div class="mt-4 bg-slate-700 text-white px-4 py-2 rounded-full text-[10px] font-black tracking-widest uppercase">
+                    Val: <span id="sumRight" class="text-base ml-1">0</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="status" class="mt-36 text-4xl font-black h-16 transition-all duration-300"></div>
+    <div id="status" class="mt-12 text-2xl md:text-4xl font-black h-16 text-center transition-all duration-300"></div>
 
     <script>
         let state = {
@@ -190,14 +204,27 @@
             xValue: 5
         };
 
+        // Mobile Drag State
+        let touchDrag = {
+            active: false,
+            type: null,
+            value: null,
+            index: null,
+            fromSide: null,
+            fromSource: false,
+            targetEl: null
+        };
+
         const beam = document.getElementById('beam');
         const statusEl = document.getElementById('status');
         const valXInput = document.getElementById('valX');
+        const ghost = document.getElementById('drag-ghost');
 
+        // --- Drag and Drop Logic (Standard Mouse) ---
         function handleSourceDragStart(e, type, defaultVal) {
-            e.dataTransfer.setData('type', type);
-            let inputId = type === 'x' ? (defaultVal > 0 ? 'toolXPosVal' : 'toolXNegVal') : (defaultVal > 0 ? 'toolNumPosVal' : 'toolNumNegVal');
+            const inputId = type === 'x' ? (defaultVal > 0 ? 'toolXPosVal' : 'toolXNegVal') : (defaultVal > 0 ? 'toolNumPosVal' : 'toolNumNegVal');
             const val = parseFloat(document.getElementById(inputId).value) || defaultVal;
+            e.dataTransfer.setData('type', type);
             e.dataTransfer.setData('value', val);
             e.dataTransfer.setData('fromSource', 'true');
         }
@@ -220,13 +247,7 @@
             const fromSide = e.dataTransfer.getData('fromSide');
             const fromSource = e.dataTransfer.getData('fromSource');
 
-            if (fromSide && fromSide !== toSide) {
-                state[fromSide].splice(fromIndex, 1);
-                state[toSide].push({type, value: val});
-            } else if (fromSource === 'true') {
-                state[toSide].push({type, value: val});
-            }
-            render();
+            processDrop(type, val, fromIndex, fromSide, toSide, fromSource === 'true');
         }
 
         function handleGlobalDrop(e) {
@@ -239,6 +260,94 @@
             }
         }
 
+        // --- Touch Interaction Logic (iPad) ---
+        function initTouchEvents() {
+            document.addEventListener('touchstart', (e) => {
+                const target = e.target.closest('.item-box');
+                if (!target) return;
+
+                // Disable default scrolling
+                if (target.draggable || target.classList.contains('touch-draggable')) {
+                    const type = target.dataset.type || (target.querySelector('.item-input')?.value.toLowerCase().includes('x') ? 'x' : 'num');
+                    const valId = target.dataset.valId;
+                    let val;
+                    
+                    if (valId) {
+                        val = parseFloat(document.getElementById(valId).value);
+                        touchDrag.fromSource = true;
+                    } else {
+                        val = parseFloat(target.dataset.value);
+                        touchDrag.index = parseInt(target.dataset.index);
+                        touchDrag.fromSide = target.dataset.fromSide;
+                        touchDrag.fromSource = false;
+                    }
+
+                    touchDrag.active = true;
+                    touchDrag.type = type;
+                    touchDrag.value = val;
+                    touchDrag.targetEl = target;
+
+                    // Setup ghost
+                    ghost.className = target.className;
+                    ghost.innerHTML = target.innerHTML;
+                    ghost.style.display = 'flex';
+                    updateGhostPosition(e.touches[0]);
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!touchDrag.active) return;
+                e.preventDefault(); // Prevent scroll
+                updateGhostPosition(e.touches[0]);
+
+                // Highlight drop zones
+                const touch = e.touches[0];
+                const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+                const zone = elementUnder?.closest('.drop-zone');
+                
+                document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('drag-over'));
+                if (zone) zone.classList.add('drag-over');
+            }, { passive: false });
+
+            document.addEventListener('touchend', (e) => {
+                if (!touchDrag.active) return;
+                
+                const touch = e.changedTouches[0];
+                const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+                const zone = elementUnder?.closest('.drop-zone');
+                
+                if (zone) {
+                    const toSide = zone.id === 'leftPlate' ? 'left' : 'right';
+                    processDrop(touchDrag.type, touchDrag.value, touchDrag.index, touchDrag.fromSide, toSide, touchDrag.fromSource);
+                } else if (touchDrag.fromSide) {
+                    // Drop outside to delete
+                    state[touchDrag.fromSide].splice(touchDrag.index, 1);
+                    render();
+                }
+
+                // Reset
+                touchDrag.active = false;
+                ghost.style.display = 'none';
+                document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('drag-over'));
+            });
+        }
+
+        function updateGhostPosition(touch) {
+            ghost.style.left = (touch.clientX - 32) + 'px';
+            ghost.style.top = (touch.clientY - 32) + 'px';
+        }
+
+        function processDrop(type, val, fromIndex, fromSide, toSide, isSource) {
+            if (fromSide && fromSide !== toSide) {
+                state[fromSide].splice(fromIndex, 1);
+                state[toSide].push({type, value: val});
+            } else if (isSource) {
+                state[toSide].push({type, value: val});
+            }
+            render();
+        }
+
+        // --- Core Application Logic ---
         function combineTerms() {
             ['left', 'right'].forEach(side => {
                 let xSum = 0, numSum = 0;
@@ -251,7 +360,6 @@
         }
 
         function smartFormat(num) {
-            // Returns a string. If it's an integer, no decimal places.
             return Number.isInteger(num) ? num.toString() : num.toFixed(2).replace(/\.?0+$/, "");
         }
 
@@ -272,7 +380,7 @@
             document.getElementById('xDisplayCenter').innerText = `X = ${smartFormat(state.xValue)}`;
 
             const diff = leftVal - rightVal;
-            let rot = -diff * 5; 
+            let rot = -diff * 4; 
             rot = Math.max(-25, Math.min(25, rot));
 
             beam.style.transform = `rotate(${rot}deg)`;
@@ -284,12 +392,10 @@
 
             if (Math.abs(leftVal - rightVal) < 0.001 && (state.left.length > 0 || state.right.length > 0)) {
                 statusEl.innerText = "🌟 PERFECT BALANCE 🌟";
-                statusEl.className = "mt-36 text-5xl font-black text-emerald-500 animate-bounce";
-                beam.classList.add('balanced-glow');
+                statusEl.className = "mt-12 text-2xl md:text-5xl font-black text-emerald-500 animate-bounce";
             } else {
                 statusEl.innerText = leftVal > rightVal ? "LEFT SIDE IS HEAVIER ↓" : (leftVal < rightVal ? "RIGHT SIDE IS HEAVIER ↓" : "");
-                statusEl.className = `mt-36 text-2xl font-black ${leftVal > rightVal ? 'text-orange-600' : 'text-blue-600'}`;
-                beam.classList.remove('balanced-glow');
+                statusEl.className = `mt-12 text-xl md:text-2xl font-black ${leftVal > rightVal ? 'text-orange-600' : 'text-blue-600'}`;
             }
         }
 
@@ -299,24 +405,27 @@
                 const el = document.createElement('div');
                 const isNeg = item.value < 0;
                 let typeClass = item.type === 'x' ? (isNeg ? 'x-neg' : 'x-pos') : (isNeg ? 'num-neg' : 'num-pos');
+                
                 el.className = `item-box ${typeClass} ${isNeg ? 'is-negative' : ''}`;
                 el.draggable = true;
+                el.dataset.type = item.type;
+                el.dataset.value = item.value;
+                el.dataset.index = index;
+                el.dataset.fromSide = side;
+
                 el.addEventListener('dragstart', (e) => handleDragStart(e, item.type, item.value, index, side));
                 
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.className = 'item-input';
+                input.readOnly = true; // Use buttons or secondary modal for editing on iPad to avoid keyboard flicker
+                
                 if (item.type === 'x') {
                     if (item.value === 1) input.value = 'X';
                     else if (item.value === -1) input.value = '-X';
                     else input.value = smartFormat(item.value) + 'x';
                 } else input.value = smartFormat(item.value);
                 
-                input.onchange = (e) => {
-                    let clean = e.target.value.replace(/[^-0-9.]/g, '');
-                    state[side][index].value = parseFloat(clean) || 0;
-                    render();
-                };
                 el.appendChild(input);
                 container.appendChild(el);
             });
@@ -347,7 +456,11 @@
         }
 
         function resetScale() { state.left = []; state.right = []; render(); }
+        
         valXInput.oninput = render;
+        
+        // Final Init
+        initTouchEvents();
         render();
     </script>
 </body>
