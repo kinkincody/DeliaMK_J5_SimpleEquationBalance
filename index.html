@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Equation Balance - Advanced</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .balance-beam {
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: center 20px;
+        }
+        .item-box {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border-radius: 6px;
+            font-size: 14px;
+            animation: popIn 0.3s ease-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .x-item { background-color: #f97316; color: white; border: 2px solid #ea580c; position: relative; }
+        .x-split { opacity: 0.7; transform: scale(0.8); border-style: dashed; }
+        .num-item { background-color: #3b82f6; color: white; border: 2px solid #2563eb; }
+        .balanced-glow {
+            filter: drop-shadow(0 0 20px rgba(34, 197, 94, 0.6));
+        }
+        .expression-box {
+            font-family: 'Times New Roman', Times, serif;
+            background: #fff;
+            border: 2px dashed #cbd5e1;
+        }
+        .fraction {
+            display: inline-flex;
+            flex-direction: column;
+            vertical-align: middle;
+            text-align: center;
+            font-size: 0.85em;
+            margin: 0 4px;
+        }
+        .fraction .top { border-bottom: 2px solid #64748b; padding: 0 6px; }
+        .fraction .bottom { padding: 0 6px; }
+        .value-tag {
+            font-size: 14px;
+            background: #ffedd5;
+            color: #9a3412;
+            padding: 4px 12px;
+            border-radius: 999px;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        /* Toggle Switch Style */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #f97316; }
+        input:checked + .slider:before { transform: translateX(26px); }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center p-4 text-slate-800">
+
+    <div class="max-w-2xl w-full text-center mb-6">
+        <h1 class="text-3xl font-bold mb-2">⚖️ Advanced Equation Balance</h1>
+        <p class="text-slate-600">Master fractions! X can now be the denominator.</p>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="bg-white p-6 rounded-2xl shadow-lg max-w-5xl w-full grid grid-cols-2 md:grid-cols-6 gap-4 mb-8 border-b-4 border-slate-200">
+        <div class="flex flex-col">
+            <label class="font-bold text-slate-500 mb-1 text-xs">VALUE of X</label>
+            <input type="number" id="valX" value="10" min="1" max="100" class="border-2 border-slate-200 rounded-lg p-2 text-center text-xl font-bold bg-yellow-50 outline-none focus:border-yellow-400">
+        </div>
+        
+        <div class="flex flex-col">
+            <label class="font-bold text-orange-600 mb-1 text-xs">Numerator (Top)</label>
+            <input type="number" id="inputNum" value="1" min="0" max="20" class="border-2 border-orange-200 rounded-lg p-2 text-center text-xl outline-none focus:border-orange-500">
+        </div>
+
+        <div class="flex flex-col items-center justify-center">
+            <label class="font-bold text-slate-400 mb-1 text-[10px]">X in Bottom?</label>
+            <label class="switch">
+                <input type="checkbox" id="xInBottom">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="flex flex-col">
+            <label class="font-bold text-pink-600 mb-1 text-xs">Denominator</label>
+            <input type="number" id="inputDenom" value="1" min="1" max="20" class="border-2 border-pink-200 rounded-lg p-2 text-center text-xl outline-none focus:border-pink-500">
+            <span id="denomLabel" class="text-[10px] text-center text-pink-400">Fixed Number</span>
+        </div>
+
+        <div class="flex flex-col">
+            <label class="font-bold text-blue-600 mb-1 text-xs">Left (+)</label>
+            <input type="number" id="inputLeft" value="2" min="0" max="50" class="border-2 border-blue-200 rounded-lg p-2 text-center text-xl outline-none focus:border-blue-500">
+        </div>
+        
+        <div class="flex flex-col">
+            <label class="font-bold text-emerald-600 mb-1 text-xs">Right Total</label>
+            <input type="number" id="inputRight" value="12" min="0" max="100" class="border-2 border-emerald-200 rounded-lg p-2 text-center text-xl outline-none focus:border-emerald-500">
+        </div>
+    </div>
+
+    <!-- Expression Display -->
+    <div class="expression-box px-12 py-8 rounded-xl mb-10 shadow-sm flex flex-col items-center min-w-[300px]">
+        <div class="flex items-center gap-6 text-5xl font-serif">
+            <span id="expLeft" class="flex items-center"></span>
+            <span class="text-slate-300">=</span>
+            <span id="expRight">12</span>
+        </div>
+        <div id="xValueLabel" class="value-tag">x = 10</div>
+    </div>
+
+    <!-- Balance UI -->
+    <div class="relative w-full max-w-5xl flex flex-col items-center mt-10">
+        <div class="absolute top-[18px] w-4 h-80 bg-slate-300 rounded-full z-0"></div>
+        <div class="absolute top-[10px] w-12 h-12 bg-slate-400 rounded-full z-20 border-4 border-slate-100 shadow-md"></div>
+        
+        <div id="beam" class="balance-beam relative w-full flex justify-between items-start pt-4 z-10">
+            <!-- Left Side -->
+            <div id="leftPlate" class="flex flex-col items-center w-96 translate-y-4">
+                <div id="leftContainer" class="flex flex-wrap-reverse justify-center gap-1 mb-2 min-h-[160px] items-start p-2 content-start"></div>
+                <div class="w-full h-4 bg-slate-800 rounded-full shadow-2xl"></div>
+                <div class="mt-3 flex gap-3">
+                    <div class="text-xs font-black bg-orange-100 px-3 py-1 rounded-full text-orange-700">Fraction Part: <span id="leftXWeight">0</span></div>
+                    <div class="text-xs font-black bg-slate-200 px-3 py-1 rounded-full text-slate-600">Total: <span id="leftSum">0</span></div>
+                </div>
+            </div>
+
+            <div class="w-1"></div>
+
+            <!-- Right Side -->
+            <div id="rightPlate" class="flex flex-col items-center w-96 translate-y-4">
+                <div id="rightContainer" class="flex flex-wrap-reverse justify-center gap-1 mb-2 min-h-[160px] items-start p-2 content-start"></div>
+                <div class="w-full h-4 bg-slate-800 rounded-full shadow-2xl"></div>
+                <div class="text-xs font-black mt-3 bg-slate-200 px-3 py-1 rounded-full text-slate-600">Total: <span id="rightSum">0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="resultMessage" class="mt-24 text-3xl font-bold h-12 text-center"></div>
+
+    <script>
+        const valXInput = document.getElementById('valX');
+        const inputNum = document.getElementById('inputNum');
+        const xInBottom = document.getElementById('xInBottom');
+        const inputDenom = document.getElementById('inputDenom');
+        const inputLeft = document.getElementById('inputLeft');
+        const inputRight = document.getElementById('inputRight');
+        const denomLabel = document.getElementById('denomLabel');
+
+        const beam = document.getElementById('beam');
+        const leftContainer = document.getElementById('leftContainer');
+        const rightContainer = document.getElementById('rightContainer');
+        const leftXWeightText = document.getElementById('leftXWeight');
+        const leftSumText = document.getElementById('leftSum');
+        const rightSumText = document.getElementById('rightSum');
+        const expLeft = document.getElementById('expLeft');
+        const expRight = document.getElementById('expRight');
+        const xValueLabel = document.getElementById('xValueLabel');
+        const resultMessage = document.getElementById('resultMessage');
+
+        function updateBalance() {
+            const curX = parseFloat(valXInput.value) || 1;
+            const topNum = parseInt(inputNum.value) || 0;
+            const botNum = parseInt(inputDenom.value) || 1;
+            const isXInBottom = xInBottom.checked;
+            const lPlus = parseInt(inputLeft.value) || 0;
+            const rTotal = parseInt(inputRight.value) || 0;
+
+            // UI logic for denominator input
+            inputDenom.disabled = isXInBottom;
+            inputDenom.style.opacity = isXInBottom ? "0.3" : "1";
+            denomLabel.innerText = isXInBottom ? "Denominator is X" : "Fixed Number";
+
+            // Calculation Logic
+            let fractionValue = 0;
+            if (isXInBottom) {
+                // Formula: topNum / X
+                fractionValue = topNum / curX;
+            } else {
+                // Formula: (topNum * X) / botNum
+                fractionValue = (topNum * curX) / botNum;
+            }
+
+            const totalLeft = fractionValue + lPlus;
+            const totalRight = rTotal;
+
+            leftXWeightText.innerText = fractionValue.toFixed(2);
+            leftSumText.innerText = totalLeft.toFixed(2);
+            rightSumText.innerText = totalRight.toFixed(2);
+            xValueLabel.innerText = `x = ${curX}`;
+
+            // Update Math Expression Display
+            expLeft.innerHTML = '';
+            
+            // Build the fraction part
+            if (topNum > 0) {
+                let fSpan = document.createElement('span');
+                fSpan.className = 'fraction';
+                
+                let topText = isXInBottom ? topNum : (topNum === 1 ? 'x' : `${topNum}x`);
+                let botText = isXInBottom ? 'x' : botNum;
+
+                if (!isXInBottom && botNum === 1) {
+                    // Not a fraction if denom is 1
+                    fSpan.className = '';
+                    fSpan.innerText = topText;
+                } else {
+                    fSpan.innerHTML = `<span class="top">${topText}</span><span class="bottom">${botText}</span>`;
+                }
+                expLeft.appendChild(fSpan);
+            }
+
+            if (lPlus > 0) {
+                let pSpan = document.createElement('span');
+                pSpan.innerText = (topNum > 0 ? " + " : "") + lPlus;
+                expLeft.appendChild(pSpan);
+            }
+            if (topNum === 0 && lPlus === 0) expLeft.innerText = "0";
+            expRight.innerText = rTotal;
+
+            // Render Visuals
+            leftContainer.innerHTML = '';
+            // Fraction visualization
+            if (topNum > 0) {
+                const count = isXInBottom ? 1 : topNum; // Just 1 visual box for the whole fraction if complex
+                for(let i=0; i<count; i++) {
+                    const el = document.createElement('div');
+                    el.className = `item-box x-item ${ (isXInBottom || botNum > 1) ? 'x-split' : ''}`;
+                    if (isXInBottom) {
+                        el.innerHTML = `<span style="font-size:10px">${topNum}/x</span>`;
+                    } else {
+                        el.innerHTML = botNum > 1 ? `<span style="font-size:10px">x/${botNum}</span>` : 'X';
+                    }
+                    leftContainer.appendChild(el);
+                }
+            }
+            // Normal Numbers Left
+            const vL = Math.min(lPlus, 30);
+            for(let i=0; i<vL; i++) {
+                const el = document.createElement('div');
+                el.className = 'item-box num-item';
+                el.innerText = '1';
+                leftContainer.appendChild(el);
+            }
+
+            // Right Side
+            rightContainer.innerHTML = '';
+            const vR = Math.min(rTotal, 45);
+            for(let i=0; i<vR; i++) {
+                const el = document.createElement('div');
+                el.className = 'item-box num-item';
+                el.innerText = '1';
+                rightContainer.appendChild(el);
+            }
+
+            // Tilt
+            const diff = totalLeft - totalRight;
+            let rot = diff * 1.5;
+            if (rot > 20) rot = 20;
+            if (rot < -20) rot = -20;
+            beam.style.transform = `rotate(${rot}deg)`;
+
+            // Feedback
+            if (Math.abs(diff) < 0.01 && (topNum > 0 || lPlus > 0 || rTotal > 0)) {
+                resultMessage.innerText = "✨ EQUATION SOLVED! ✨";
+                resultMessage.className = "mt-24 text-4xl font-bold text-emerald-600 animate-bounce";
+                beam.classList.add('balanced-glow');
+            } else {
+                resultMessage.innerText = diff > 0 ? "HEAVY LEFT ↓" : (diff < 0 ? "HEAVY RIGHT ↓" : "");
+                resultMessage.className = `mt-24 text-2xl font-bold ${diff > 0 ? 'text-orange-500' : 'text-blue-500'}`;
+                beam.classList.remove('balanced-glow');
+            }
+        }
+
+        [valXInput, inputNum, xInBottom, inputDenom, inputLeft, inputRight].forEach(input => {
+            input.addEventListener('input', updateBalance);
+        });
+
+        updateBalance();
+    </script>
+</body>
+</html>
